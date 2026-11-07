@@ -1,0 +1,25 @@
+{
+  "name": "NaNter — every converter & calculator",
+  "short_name": "NaNter",
+  "description": "Units, currency, dates, time zones, percentages, loans, sizes and 80+ more tools. No ads, works offline.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "categories": ["utilities", "productivity", "finance"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Currency", "url": "./#/t/currency" },
+    { "name": "Time zones", "url": "./#/t/timezones" },
+    { "name": "Date difference", "url": "./#/t/datediff" },
+    { "name": "Length", "url": "./#/t/length" }
+  ]
+}
