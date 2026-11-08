@@ -163,5 +163,57 @@ const coffee = {
   },
 };
 
-export const tools = { cooking: { mount: mountCooking }, recipe: { mount: mountRecipe }, coffee };
+
+/* ---------- Rice, pasta & grains ---------- */
+// [id, name, group, g per US cup, portions [side, main, big] (g dry per person), method, water (cups per cup, or L per 100 g for boil), minutes, rest, cooked weight ×, tip]
+export const GRAINS = [
+  ['basmati', 'Basmati rice', 'Rice', 185, [50, 75, 100], 'abs', 1.5, 12, 10, 2.8, 'Rinse until the water runs clear. Bring to the boil, then cover and simmer on low heat.'],
+  ['white', 'Long-grain white rice', 'Rice', 185, [50, 75, 100], 'abs', 2, 18, 5, 2.8, 'Simmer covered on low heat; don’t lift the lid.'],
+  ['jasmine', 'Jasmine rice', 'Rice', 185, [50, 75, 100], 'abs', 1.25, 12, 10, 2.6, 'Rinse first. Simmer covered on low heat.'],
+  ['brown', 'Brown rice', 'Rice', 190, [50, 75, 100], 'abs', 2.25, 40, 10, 2.5, 'Simmer covered on low heat.'],
+  ['sushi', 'Sushi / short-grain rice', 'Rice', 200, [50, 75, 100], 'abs', 1.1, 15, 10, 2.3, 'Rinse well; season with rice vinegar, sugar and salt while warm.'],
+  ['risotto', 'Risotto rice (arborio)', 'Rice', 200, [60, 80, 100], 'stock', 3.5, 18, 2, 2.6, 'Toast the rice, then add hot stock one ladle at a time, stirring.'],
+  ['pasta', 'Dried pasta', 'Pasta', 100, [60, 100, 125], 'boil', 1, 10, 0, 2.3, 'Use 1 L of water per 100 g and 10 g of salt per litre. Cook as the packet says (8–12 min).'],
+  ['fresh', 'Fresh pasta', 'Pasta', 100, [80, 125, 150], 'boil', 1, 3, 0, 1.4, 'Use plenty of salted boiling water; ready when it floats (2–4 min).'],
+  ['couscous', 'Couscous', 'Grains', 175, [50, 80, 100], 'abs', 1, 0, 5, 2.5, 'Pour boiling salted water over, cover 5 min, then fluff with a fork and a little butter or oil.'],
+  ['bulgur', 'Bulgur', 'Grains', 140, [45, 70, 90], 'abs', 2, 12, 5, 2.5, 'Simmer covered, then rest off the heat.'],
+  ['quinoa', 'Quinoa', 'Grains', 170, [45, 70, 90], 'abs', 2, 15, 5, 2.7, 'Rinse to remove bitterness. Simmer covered until the little spirals show.'],
+  ['lentils', 'Green / brown lentils', 'Grains', 190, [40, 70, 90], 'boil3', 3, 25, 0, 2.3, 'No need to soak. Salt at the end so they stay tender.'],
+  ['redlentils', 'Red lentils', 'Grains', 190, [40, 70, 90], 'abs', 2.5, 15, 0, 2.4, 'They break down: perfect for soups and dal.'],
+  ['polenta', 'Polenta (instant)', 'Grains', 160, [40, 70, 90], 'abs', 4, 5, 0, 4, 'Rain it into boiling salted water while whisking. Traditional polenta takes ~40 min.'],
+  ['oats', 'Porridge oats', 'Grains', 90, [40, 50, 70], 'abs', 2, 5, 0, 3, 'Milk, water or half and half. Stir often.'],
+];
+const grainOpts = () => ['Rice', 'Pasta', 'Grains'].map(g => ({ group: g, options: GRAINS.filter(x => x[2] === g).map(x => [x[0], x[1]]) }));
+export function grainPlan(id, people, appetite) {
+  const g = GRAINS.find(x => x[0] === id);
+  const [, name, , cupG, portions, method, water, mins, rest, yieldX, tip] = g;
+  const dry = people * portions[appetite];
+  const cups = dry / cupG;
+  let waterMl = null, boilL = null;
+  if (method === 'abs' || method === 'stock') waterMl = cups * water * 236.5882365;
+  if (method === 'boil') boilL = Math.max(1, Math.ceil(dry / 100 * water * 2) / 2);
+  if (method === 'boil3') waterMl = cups * water * 236.5882365;
+  return { name, dry, cups, waterMl, boilL, mins, rest, cooked: dry * yieldX, tip, method };
+}
+const grains = {
+  fields: [
+    { id: 'food', type: 'select', label: 'What', options: grainOpts, default: 'basmati' },
+    { id: 'people', type: 'stepper', label: 'People', default: 2, min: 1, max: 50 },
+    { id: 'size', type: 'seg', label: 'Portion', options: [['0', 'Side dish'], ['1', 'Main'], ['2', 'Hungry']], default: '1' },
+  ],
+  compute(v) {
+    const p = grainPlan(v.food, Math.max(1, v.people || 1), +v.size);
+    const us = settings.system === 'us';
+    const cupsTxt = c => `${fractionText(c, 4)} cup${c > 1.01 ? 's' : ''}`;
+    const items = [{ k: `Dry ${p.name.toLowerCase()}`, v: `${fmt(p.dry, { dec: 0 })} g`, big: true, sub: `≈ ${cupsTxt(p.cups)}${us ? ` · ${fmt(p.dry / 28.35, { maxDec: 1 })} oz` : ''}` }];
+    if (p.method === 'boil') items.push({ k: 'Pot of water', v: `${fmt(p.boilL, { maxDec: 1 })} L`, sub: `+ ${fmt(p.boilL * 10, { dec: 0 })} g salt (about ${fmt(p.boilL * 10 / 6, { maxDec: 1 })} tsp)` });
+    else items.push({ k: p.method === 'stock' ? 'Hot stock (about)' : p.method === 'boil3' ? 'Water (3 × volume)' : 'Water', v: `${fmt(Math.round(p.waterMl / 10) * 10, { dec: 0 })} mL`, sub: cupsTxt(p.waterMl / 236.5882365) });
+    items.push({ k: 'Cooking time', v: p.mins ? `${p.mins} min` : 'No cooking', sub: p.rest ? `+ ${p.rest} min resting, covered` : null },
+      { k: 'Cooked weight', v: `≈ ${fmt(Math.round(p.cooked / 10) * 10, { dec: 0 })} g` },
+      { note: p.tip });
+    return items;
+  },
+};
+
+export const tools = { cooking: { mount: mountCooking }, recipe: { mount: mountRecipe }, coffee, grains };
 void ok;

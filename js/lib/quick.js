@@ -9,6 +9,7 @@ import * as D from './dates.js';
 import { wall, offsetMin, instantOf, offsetLabel, fmtTime, fmtDay } from './tz.js';
 import { ALL as INGREDIENTS, KU, ML_PER_CUP } from '../tools/kitchen.js';
 import { toBig, fromBig, toRoman, fromRoman } from '../tools/math.js';
+import { haversine, flightMinutes, findCity } from '../tools/travel.js';
 
 const NUM = String.raw`[-−]?(?:\d+\s+\d+\/\d+|\d+\/\d+|\d[\d\s.,'’]*\d|\d|[.,]\d+)(?:e[-+]?\d+)?`;
 const SEP = String.raw`\s+(?:to|in|into|as|en|vers|=)\s+|\s*(?:->|→|=>|=)\s*`;
@@ -281,7 +282,12 @@ function dateAnswer(q) {
   m = /^(?:days?|weeks?|months?|years?|jours?|time)\s*(?:since|depuis)\s+(.+)$/.exec(s) || /^how long since\s+(.+)$/.exec(s);
   if (m) { const t = parseDate(m[1], 'past'); if (t) return diffAns(t, today, `Since ${D.fmtDate(t, 'med')}`); }
   m = /^(?:(?:days )?(?:from|between|du|entre)\s+)?(.+?)\s+(?:to|and|until|→|au|et)\s+(.+)$/.exec(s);
-  if (m && !/^\d+$/.test(m[1].trim())) { const a = parseDate(m[1], 'past'), b = parseDate(m[2], 'future'); if (a && b) return diffAns(a, b, `${D.fmtDate(a, 'short')} → ${D.fmtDate(b, 'short')}`); }
+  if (m && !/^\d+$/.test(m[1].trim())) {
+    const a = parseDate(m[1], 'future');
+    let b = parseDate(m[2], 'future');
+    if (a && b && D.dayNum(b) < D.dayNum(a) && !/\d{4}/.test(m[2])) b = D.addYears(b, 1);
+    if (a && b) return diffAns(a, b, `${D.fmtDate(a, 'short')} → ${D.fmtDate(b, 'short')}`);
+  }
   let base = null, n, u;
   m = new RegExp(`^(.+?)\\s*([+-])\\s*(\\d+)\\s*${UNIT}$`).exec(s);
   if (m) { base = parseDate(m[1]); n = +m[3] * (m[2] === '-' ? -1 : 1); u = DUR[m[4]]; }
@@ -413,13 +419,33 @@ function cookingAnswer(q) {
   return [{ query: `${m[1]} ${m[2]} of ${hit[1].toLowerCase()} =`, value: `${fmt(out, { sig: 3 })} ${m[3]}`, copy: fmt(out, { sig: 3 }), sub: `1 cup ≈ ${hit[2]} g`, tool: 'cooking', params: { ing: hit[0], u: fu[0], v: String(v) } }];
 }
 
+
+/* ---------- distance between cities: "distance paris tokyo", "paris to new york km" ---------- */
+function distAnswer(q) {
+  const s = q.toLowerCase().replace(/\?$/, '').trim();
+  if (!/\b(distance|how far|km|miles?|flight)\b/.test(s)) return [];
+  const body = s.replace(/\b(distance|how far is it|how far|flight time|flight|in km|in miles|km|miles?|between|is it|is|de|entre)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  let pair = null;
+  const parts = body.replace(/^from\s+/, '').split(/\s+(?:to|and|from|et|à|a|->)\s+|\s*[-→]\s*/).filter(Boolean);
+  if (parts.length === 2) { const a = findCity(parts[0]), b = findCity(parts[1]); if (a && b) pair = [a, b]; }
+  if (!pair) {
+    const w = body.split(' ');
+    for (let i = 1; i < w.length && !pair; i++) { const a = findCity(w.slice(0, i).join(' ')), b = findCity(w.slice(i).join(' ')); if (a && b) pair = [a, b]; }
+  }
+  if (!pair || pair[0] === pair[1]) return [];
+  const [a, b] = pair;
+  const km = haversine(a, b), fm = flightMinutes(km);
+  const metric = settings.system === 'metric';
+  return [{ query: `${a.name} → ${b.name} (straight line)`, value: metric ? `${fmt(km, { maxDec: 0 })} km` : `${fmt(km / 1.609344, { maxDec: 0 })} mi`, sub: `${metric ? fmt(km / 1.609344, { maxDec: 0 }) + ' mi' : fmt(km, { maxDec: 0 }) + ' km'}${fm ? ` · flight ≈ ${Math.floor(fm / 60)} h ${String(fm % 60).padStart(2, '0')}` : ''}`, tool: 'citydist', params: { a: a.name, b: b.name } }];
+}
+
 /** Up to three answers for a query. */
 export async function answer(raw) {
   const q = String(raw || '').trim();
   if (q.length < 2) return [];
   const out = [];
   const add = a => { for (const x of a || []) if (out.length < 3 && !out.some(o => o.value === x.value)) out.push(x); };
-  for (const t of [() => unixAnswer(q), () => basesAnswer(q), () => romanAnswer(q, raw), () => percentAnswer(q), () => cookingAnswer(q), () => unitAnswer(q), () => tzAnswer(q), () => dateAnswer(q)]) {
+  for (const t of [() => unixAnswer(q), () => basesAnswer(q), () => romanAnswer(q, raw), () => percentAnswer(q), () => cookingAnswer(q), () => distAnswer(q), () => unitAnswer(q), () => tzAnswer(q), () => dateAnswer(q)]) {
     try { add(t()); } catch (e) { console.warn(e); }
   }
   try { add(await currencyAnswer(q)); } catch (e) { console.warn(e); }

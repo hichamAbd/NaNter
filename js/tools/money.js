@@ -5,7 +5,7 @@ import { numField, seg, selectEl, chips, row, results, iconBtn, dateField, isoDa
 import { settings } from '../core/store.js';
 import { getRates, cachedRates, rate, currencyName, currencyFlag, kindOf, listCodes, rateOn, series, ECB, ensureCryptoNames, METALS } from '../lib/currencies.js';
 import { unitsOf } from '../data/units.js';
-import { ok, okPos } from '../core/form.js';
+import { ok, okPos, mountForm } from '../core/form.js';
 
 const M = (x, cur = settings.currency) => fmtMoney(x, cur);
 const today = () => isoToday();
@@ -666,7 +666,60 @@ const energycost = {
   },
 };
 
+
+/* ---------- Zakat ---------- */
+const NISAB_GOLD_G = 85, NISAB_SILVER_G = 595;
+export function zakatCalc({ cash = 0, goldG = 0, karat = 24, silverG = 0, silverFine = 999, other = 0, debts = 0, g24, ag, nisab = 'gold' }) {
+  const goldValue = goldG * (karat / 24) * g24;
+  const silverValue = silverG * (silverFine / 1000) * ag;
+  const total = cash + goldValue + silverValue + other - debts;
+  const threshold = nisab === 'gold' ? NISAB_GOLD_G * g24 : NISAB_SILVER_G * ag;
+  return { goldValue, silverValue, total, threshold, due: total >= threshold && total > 0 ? total * 0.025 : 0 };
+}
+async function mountZakat(root, ctx) {
+  let rates = cachedRates()?.rates;
+  const status = statusLine(() => refresh(true));
+  root.append(status);
+  const price = code => { const k = rate(rates, code, settings.currency); return Number.isFinite(k) ? k / OZT : NaN; };
+  const v0 = (x) => (ok(x) ? x : 0);
+  const form = mountForm(root, {
+    fields: [
+      { group: 'What you own' },
+      { id: 'cash', type: 'money', label: 'Cash & bank accounts', placeholder: '0' },
+      { id: 'gold', type: 'num', label: 'Gold', suffix: 'g', placeholder: '0' },
+      { id: 'karat', type: 'seg', label: 'Gold purity', options: [['24', '24k'], ['22', '22k'], ['21', '21k'], ['18', '18k'], ['14', '14k']], default: '18', when: v => v.gold > 0 },
+      { id: 'silver', type: 'num', label: 'Silver', suffix: 'g', placeholder: '0' },
+      { id: 'fine', type: 'seg', label: 'Silver purity', options: [['999', 'Pure'], ['925', 'Sterling 925']], default: '925', when: v => v.silver > 0 },
+      { id: 'invest', type: 'money', label: 'Shares, funds, crypto', placeholder: '0' },
+      { id: 'business', type: 'money', label: 'Goods for sale (business)', placeholder: '0' },
+      { id: 'owed', type: 'money', label: 'Money owed to you', hint: 'that you expect to get back', placeholder: '0' },
+      { group: 'Minus' },
+      { id: 'debts', type: 'money', label: 'Debts due now', placeholder: '0' },
+      { group: 'Nisab (threshold)' },
+      { id: 'nisab', type: 'seg', options: [['gold', `Gold · ${NISAB_GOLD_G} g`], ['silver', `Silver · ${NISAB_SILVER_G} g`]], default: 'gold' },
+    ],
+    compute(v) {
+      const g24 = price('XAU'), ag = price('XAG');
+      if (!Number.isFinite(g24) || !Number.isFinite(ag)) return [{ note: 'Gold and silver prices are needed: connect once to load them.' }];
+      const r = zakatCalc({ cash: v0(v.cash), goldG: v0(v.gold), karat: +v.karat, silverG: v0(v.silver), silverFine: +v.fine, other: v0(v.invest) + v0(v.business) + v0(v.owed), debts: v0(v.debts), g24, ag, nisab: v.nisab });
+      return [
+        r.due > 0 ? { k: 'Zakat due (2.5 %)', v: M(r.due), big: true, tone: 'good', sub: `On ${M(r.total)} of zakatable wealth` } : { k: 'Zakat due', v: M(0), big: true, sub: r.total > 0 ? `Below the nisab of ${M(r.threshold)}` : 'Enter what you own' },
+        { k: 'Zakatable wealth', v: M(r.total) },
+        { k: `Nisab (${v.nisab === 'gold' ? `${NISAB_GOLD_G} g gold` : `${NISAB_SILVER_G} g silver`})`, v: M(r.threshold) },
+        v0(v.gold) ? { k: `Gold value (${v.karat}k)`, v: M(r.goldValue) } : null,
+        v0(v.silver) ? { k: 'Silver value', v: M(r.silverValue) } : null,
+        { k: 'Gold price used', v: `${M(g24)} / g (24k)`, sub: `Silver ${M(ag)} / g · rates of ${cachedRates()?.date || '—'}` },
+        { note: 'Zakat is due on wealth above the nisab held for one lunar year (hawl). Schools of thought differ on jewellery worn regularly and on some assets: ask a scholar for your own situation.' },
+      ];
+    },
+  }, ctx);
+  async function refresh(force) { try { const r = await getRates({ force }); rates = r.rates; status.update(r); form.update(); } catch (e) { status.update(cachedRates(), e); } }
+  status.update(cachedRates());
+  refresh(false);
+}
+
 export const tools = {
+  zakat: { mount: mountZakat },
   currency: { mount: mountCurrency },
   fxhistory: { mount: mountFxHistory },
   cheatsheet: { mount: mountCheatSheet },

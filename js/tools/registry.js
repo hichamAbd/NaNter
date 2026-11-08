@@ -10,8 +10,10 @@ export const CATS = [
   { id: 'math', name: 'Math' },
   { id: 'health', name: 'Health & fitness' },
   { id: 'kitchen', name: 'Kitchen' },
+  { id: 'home', name: 'Home' },
   { id: 'sizes', name: 'Sizes' },
   { id: 'tech', name: 'Tech' },
+  { id: 'phone', name: 'Phone sensors' },
 ];
 
 const cur = () => { const s = currencySymbol(settings.currency); return s.length <= 2 ? s : '¤'; };
@@ -48,6 +50,7 @@ const T = [
   ['fxhistory', 'money', 'Exchange history', 'FX', 'money', 'Rate on any date, charts', 'historical exchange rate chart past date expense report'],
   ['cheatsheet', 'money', 'Price cheat sheet', '≈', 'money', 'Quick price table for travel', 'travel holiday prices abroad table'],
   ['crypto', 'money', 'Crypto & gold', '₿', 'money', 'Bitcoin, Ether, gold & silver prices', 'bitcoin btc ethereum eth crypto gold silver platinum precious metals carat'],
+  ['zakat', 'money', 'Zakat', '2.5%', 'money', 'With today’s gold and silver prices', 'zakat nisab hawl islam gold silver'],
   ['tip', 'money', 'Tip & split', 'Tip', 'money', 'Tip, total and split the bill', 'tip gratuity split bill restaurant pourboire'],
   ['discount', 'money', 'Discount', '−%', 'money', 'Sale price, % off, original price', 'sale off reduction promo soldes'],
   ['vat', 'money', 'VAT & sales tax', 'VAT', 'money', 'Add or remove VAT / sales tax', 'tax tva gst sales tax ht ttc net gross'],
@@ -57,22 +60,25 @@ const T = [
   ['salary', 'money', 'Salary', () => `${cur()}/h`, 'units', 'Hourly ↔ monthly ↔ yearly', 'wage pay income hourly annual salaire', 'salary'],
   ['unitprice', 'money', 'Unit price', () => `${cur()}/kg`, 'money', 'Which pack is cheaper?', 'compare price per kg per liter supermarket grocery'],
   ['tripcost', 'money', 'Trip cost', 'Trip', 'money', 'Fuel or charging cost of a trip', 'fuel cost petrol gas trip road car split'],
-  ['energycost', 'money', 'Energy cost', () => `${cur()}/kWh`, 'money', 'What an appliance costs to run', 'electricity cost appliance kwh bill watts'],
+  ['energycost', 'money', 'Energy cost', 'Plug', 'money', 'What an appliance costs to run', 'electricity cost appliance kwh bill watts'],
 
   ['datediff', 'time', 'Date difference', 'Δd', 'time', 'Days, weeks, working days between dates', 'days between dates duration working days business days how many days'],
   ['dateadd', 'time', 'Add to date', '+d', 'time', 'Date ± days, weeks, months, working days', 'add days subtract date plus deadline due'],
   ['age', 'time', 'Age', 'Age', 'time', 'Exact age, next birthday', 'birthday age born years old'],
   ['countdown', 'time', 'Countdowns', 'T−', 'time', 'Days until your events', 'countdown days until christmas event birthday holiday'],
+  ['holidays', 'time', 'Holidays', 'Off', 'holidays', 'Public & school holidays, long weekends', 'public holidays bank holidays jours feries ponts bridge school holidays vacances scolaires zone a b c'],
   ['timezones', 'time', 'Time zones', 'UTC', 'time', 'World clock & meeting planner', 'world clock timezone time zone meeting gmt utc'],
   ['timecalc', 'time', 'Time calculator', 'h:m', 'time', 'Add durations, time between two times', 'hours minutes add time duration between'],
   ['timesheet', 'time', 'Timesheet', 'Σh', 'time', 'Hours worked per week, pay', 'hours worked work time card timesheet overtime'],
   ['travel', 'time', 'Travel time', 'ETA', 'time', 'Speed, distance, time & arrival', 'speed distance time eta arrival drive'],
+  ['citydist', 'time', 'City distance', 'A↔B', 'travel', 'Distance & flight time between cities', 'distance between cities flight time km miles as the crow flies great circle'],
   ['unix', 'time', 'Unix time', 'Unix', 'time', 'Epoch timestamp ↔ date', 'epoch timestamp unix posix iso 8601'],
   ['dateinfo', 'time', 'Date info', () => 'W' + isoWeek(), 'time', 'Week number, day of year, moon phase', 'week number iso week day of year leap year weekday moon'],
   ['calendars', 'time', 'Calendars', 'Cal', 'time', 'Hijri, Hebrew, Persian, Chinese…', 'hijri islamic ramadan hebrew jewish persian chinese buddhist japanese calendar convert'],
   ['sun', 'time', 'Sun & moon', '☼', 'time', 'Sunrise, sunset, golden hour, moon', 'sunrise sunset daylight golden hour twilight moon phase'],
 
   ['percentage', 'math', 'Percentage', '%', 'math', '% of, % change, increase, decrease', 'percent percentage pourcentage'],
+  ['scicalc', 'math', 'Scientific calculator', 'f(x)', 'calc', 'Big keys, functions, history', 'calculator calculatrice scientific sin cos tan log exponent factorial'],
   ['ratio', 'math', 'Ratio & rule of 3', 'a:b', 'math', 'Proportions, cross-multiplication', 'proportion rule of three regle de trois cross multiply'],
   ['fractions', 'math', 'Fractions', '½', 'math', 'Simplify, convert, calculate', 'fraction decimal simplify'],
   ['bases', 'math', 'Number bases', '0x', 'math', 'Binary, octal, decimal, hex', 'binary hex hexadecimal octal base'],
@@ -95,8 +101,11 @@ const T = [
 
   ['cooking', 'kitchen', 'Cups ↔ grams', 'cup', 'kitchen', 'Volume ↔ weight for 40 ingredients', 'cups grams flour sugar butter baking tablespoon teaspoon recipe'],
   ['recipe', 'kitchen', 'Recipe scaler', '×2', 'kitchen', 'Scale servings or pan size', 'recipe scale servings portions double halve pan'],
+  ['grains', 'kitchen', 'Rice & pasta', 'Rice', 'kitchen', 'Portions, water and cooking time', 'rice pasta couscous quinoa bulgur lentils portion water ratio cooking time riz pates'],
   ['oven', 'kitchen', 'Oven temperature', '180°', 'units', '°C, °F, fan, gas mark, thermostat', 'oven gas mark fan thermostat baking', 'oven'],
   ['coffee', 'kitchen', 'Coffee ratio', '1:16', 'kitchen', 'Coffee-to-water brew ratio', 'coffee brew ratio pour over french press espresso'],
+  ['heating', 'home', 'Heating & cooling', 'BTU', 'home', 'Heater and air-con power for a room', 'heater radiator air conditioning ac btu room chauffage climatisation puissance'],
+  ['energyprices', 'home', 'Energy prices', () => `${cur()}/kWh`, 'home', 'Cheapest way to heat: cost per kWh', 'electricity gas heating oil fioul pellets granules firewood bois heat pump pac propane compare kwh'],
 
   ['shoes', 'sizes', 'Shoe sizes', '42', 'units', 'EU, UK, US, cm', 'shoe size pointure', 'shoes'],
   ['clothing', 'sizes', 'Clothing sizes', 'M', 'sizes', 'International clothing sizes', 'clothing size dress shirt jeans trousers taille'],
@@ -110,10 +119,13 @@ const T = [
   ['datarate', 'tech', 'Data speed', 'Mb/s', 'units', '', 'bandwidth internet speed mbps download', 'datarate'],
   ['download', 'tech', 'Download time', '↓GB', 'tech', 'How long will it take?', 'download upload time file size speed'],
   ['color', 'tech', 'Color', '#', 'tech', 'HEX, RGB, HSL, CMYK, contrast', 'colour color hex rgb hsl cmyk contrast'],
+  ['qr', 'tech', 'QR code', 'QR', 'qrtool', 'Links, Wi-Fi, contacts as QR codes', 'qr code generator wifi link contact vcard sms email'],
   ['css', 'tech', 'CSS units', 'px', 'units', 'px, pt, em, rem, mm…', 'css px pt em rem typography font', 'css'],
   ['ohm', 'tech', "Ohm's law", 'Ω', 'tech', 'Volts, amps, ohms, watts', 'ohm volt amp watt resistance current voltage electricity'],
   ['battery', 'tech', 'Battery', 'mAh', 'tech', 'mAh ↔ Wh, runtime', 'battery mah wh power bank capacity runtime'],
   ['text', 'tech', 'Text counter', 'Aa', 'tech', 'Words, characters, reading time', 'word count character count text length'],
+  ['level', 'phone', 'Spirit level', '0.0°', 'phone', 'Bubble level with the motion sensor', 'spirit level bubble niveau a bulle inclinometer tilt angle'],
+  ['speedo', 'phone', 'Speedometer', 'GPS', 'phone', 'GPS speed, altitude, trip distance', 'speedometer gps speed altitude elevation trip compteur vitesse'],
 ];
 
 export const TOOLS = T.map(([id, cat, name, glyph, mod, desc, kw, unitCat]) => {

@@ -1,7 +1,7 @@
 // Offline: the whole app is cached at install, so it opens instantly and works without a connection.
 // Exchange-rate and holiday APIs are cross-origin and never cached here (the app keeps its own copy).
 // Bump VERSION on every deploy: the new worker re-downloads everything, then the page reloads once.
-const VERSION = 'nanter-v2';
+const VERSION = 'nanter-v3';
 const SHELL = [
   './',
   'index.html',
@@ -22,21 +22,29 @@ const SHELL = [
   'js/core/store.js',
   'js/core/ui.js',
   'js/data/geo.js',
+  'js/data/schoolfr.js',
   'js/data/units.js',
   'js/lib/currencies.js',
   'js/lib/dates.js',
   'js/lib/holidays.js',
+  'js/lib/qr.js',
   'js/lib/quick.js',
   'js/lib/sun.js',
   'js/lib/tz.js',
+  'js/tools/calc.js',
   'js/tools/health.js',
+  'js/tools/holidays.js',
+  'js/tools/home.js',
   'js/tools/kitchen.js',
   'js/tools/math.js',
   'js/tools/money.js',
+  'js/tools/phone.js',
+  'js/tools/qrtool.js',
   'js/tools/registry.js',
   'js/tools/sizes.js',
   'js/tools/tech.js',
   'js/tools/time.js',
+  'js/tools/travel.js',
   'js/tools/units.js',
 ];
 
