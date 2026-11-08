@@ -262,8 +262,8 @@ export function unitInput({ units, unit, base = null, onChange, aria, negative =
     if (b == null || !Number.isFinite(b)) { fields.forEach(f => f.set('')); return; }
     if (u.parts) {
       const vals = splitParts(u, u.fromBase(b));
-      fields.forEach((f, i) => f.set(vals[i] ? fmt(vals[i], { group: false, maxDec: i === fields.length - 1 ? (u.dec ?? 2) : 0, sig: 10 }) : (i === 0 ? '0' : '')));
-    } else fields[0].set(fmt(u.fromBase(b), { group: false, sig: 10 }));
+      fields.forEach((f, i) => f.set(vals[i] ? fmt(vals[i], { group: false, maxDec: i === fields.length - 1 ? (u.dec ?? 2) : 0, sig: 12 }) : (i === 0 ? '0' : '')));
+    } else fields[0].set(fmt(u.fromBase(b), { group: false }));
   }
   build(); show(base);
   el.append(boxes);
@@ -293,7 +293,8 @@ function renderItem(it) {
   const copy = it.copy ?? (typeof it.v === 'string' ? it.v : null);
   const tag = copy != null && it.nocopy !== true ? 'button' : 'div';
   const long = !it.big && typeof it.v === 'string' && it.v.length > 22 && String(it.k || '').length > 8;
-  const attrs = { class: (it.big ? 'res-hero' : 'res-row') + (it.tone ? ' ' + it.tone : '') + (long || it.stack ? ' long' : ''), type: tag === 'button' ? 'button' : null };
+  const longHero = it.big && typeof it.v === 'string' && it.v.length > 22;
+  const attrs = { class: (it.big ? 'res-hero' : 'res-row') + (it.tone ? ' ' + it.tone : '') + (long || it.stack ? ' long' : '') + (longHero ? ' longv' : ''), type: tag === 'button' ? 'button' : null };
   if (tag === 'button') attrs.onclick = () => copyText(copy, it.copyLabel ?? (copy + (it.unit ? ' ' + it.unit : '')));
   return h(tag, attrs,
     h('span', { class: 'res-k' }, it.k ?? ''),

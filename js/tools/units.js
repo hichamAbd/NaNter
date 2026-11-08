@@ -201,7 +201,7 @@ export function mountUnits(root, ctx, catId) {
             const r = Math.round(x / u.step) * u.step;
             f.set(fmt(r, { maxDec: 3 }));
             sub.textContent = Math.abs(r - x) > u.step * 0.15 ? `exact ${fmt(x, { maxDec: 2 })}` : '';
-          } else f.set(fmt(x));
+          } else f.set(fmt(x, cat.maxDec != null ? { maxDec: cat.maxDec } : {}));
           if (u.frac) sub.textContent = fracSub(x);
           fit();
         },

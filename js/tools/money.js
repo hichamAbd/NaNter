@@ -1,6 +1,6 @@
 // Money: currency (live rates), history, travel cheat sheet, crypto & gold, and everyday money calculators.
 import { h, icon, copyText, openSheet, norm, toast } from '../core/dom.js';
-import { parseNum, fmt, fmtFixed, fmtMoney, fmtAmount, fmtPct, currencySymbol } from '../core/num.js';
+import { parseNum, fmt, fmtFixed, fmtMoney, fmtAmount, fmtPct, currencySymbol, currencyDigits } from '../core/num.js';
 import { numField, seg, selectEl, chips, row, results, iconBtn, dateField, isoDate, isoToday } from '../core/ui.js';
 import { settings } from '../core/store.js';
 import { getRates, cachedRates, rate, currencyName, currencyFlag, kindOf, listCodes, rateOn, series, ECB, ensureCryptoNames, METALS } from '../lib/currencies.js';
@@ -294,7 +294,7 @@ async function mountCheatSheet(root, ctx) {
     const mag = k >= 1 ? 1 : 10 ** Math.floor(Math.log10(1 / k));
     const seq = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].map(x => x * mag);
     return h('div', { class: 'card list' }, h('div', { class: 'cheat-head' }, h('span', null, currencyFlag(a) + ' ' + a), h('span', null, b + ' ' + currencyFlag(b))),
-      seq.map(x => h('button', { class: 'cheat-row', type: 'button', onclick: () => copyText(fmtAmount(x * k, b), `${fmtAmount(x * k, b)} ${b}`) }, h('span', null, fmt(x, { dec: 0 })), h('b', null, fmtAmount(x * k, b)))));
+      seq.map(x => { const v = x * k; const t = v >= 0.01 && kindOf(b) === 'fiat' ? fmtFixed(v, currencyDigits(b)) : fmtAmount(v, b); return h('button', { class: 'cheat-row', type: 'button', onclick: () => copyText(t, `${t} ${b}`) }, h('span', null, fmt(x, { dec: 0 })), h('b', null, t)); }));
   }
   function draw() { box.replaceChildren(table(st.from, st.to), table(st.to, st.from)); }
   async function refresh(force) { try { const r = await getRates({ force }); rates = r.rates; status.update(r); draw(); } catch (e) { status.update(cachedRates(), e); } }
@@ -431,7 +431,7 @@ const tip = {
 
 const discount = {
   fields: [
-    { id: 'mode', type: 'seg', options: [['sale', 'Sale price'], ['pct', 'Find % off'], ['orig', 'Original price']], default: 'sale' },
+    { id: 'mode', type: 'seg', options: [['sale', 'Sale price'], ['pct', '% off'], ['orig', 'Original']], default: 'sale' },
     { id: 'orig', type: 'money', label: 'Original price', when: v => v.mode !== 'orig' },
     { id: 'sale', type: 'money', label: 'Sale price', when: v => v.mode !== 'sale' },
     { id: 'pct', type: 'pct', label: 'Discount', default: '20', when: v => v.mode !== 'pct', presets: [[10, '−10 %'], [20, '−20 %'], [25, '−25 %'], [30, '−30 %'], [40, '−40 %'], [50, '−50 %'], [70, '−70 %']] },
@@ -479,7 +479,7 @@ const vat = {
 
 const margin = {
   fields: [
-    { id: 'mode', type: 'seg', options: [['both', 'Cost & price'], ['margin', 'Target margin'], ['markup', 'Target markup']], default: 'both' },
+    { id: 'mode', type: 'seg', options: [['both', 'Cost & price'], ['margin', 'Margin %'], ['markup', 'Markup %']], default: 'both' },
     { id: 'cost', type: 'money', label: 'Cost' },
     { id: 'price', type: 'money', label: 'Selling price', when: v => v.mode === 'both' },
     { id: 'pct', type: 'pct', label: 'Margin', when: v => v.mode === 'margin', default: '30' },

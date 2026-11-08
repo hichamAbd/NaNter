@@ -76,6 +76,7 @@ export function mountForm(root, spec, ctx) {
       }
       case 'hms': {
         const parts = f.parts || ['h', 'min', 's'];
+        if (typeof state[f.id] === 'string') state[f.id] = state[f.id].split(',');
         const vals = (state[f.id] || []).slice();
         const boxes = parts.map((p, i) => numField({ value: vals[i] ?? '', suffix: p, placeholder: '0', aria: `${f.label} ${p}`, onInput: (n, raw) => { vals[i] = raw; set(vals.slice()); } }));
         const el = h('div', { class: 'hms' }, boxes);
@@ -96,8 +97,9 @@ export function mountForm(root, spec, ctx) {
         case 'unit': v[f.id] = s?.b ?? null; v[f.id + '_u'] = s?.u || (typeof f.unit === 'function' ? f.unit() : f.unit); break;
         case 'hms': {
           const mul = f.mul || [3600, 60, 1];
-          const nums = (s || []).map(parseNum);
+          const nums = (typeof s === 'string' ? s.split(',') : s || []).map(parseNum);
           v[f.id] = nums.some(x => Number.isFinite(x)) ? nums.reduce((a, x, i) => a + (Number.isFinite(x) ? x : 0) * mul[i], 0) : null;
+          v[f.id + '_parts'] = nums;
           break;
         }
         default: v[f.id] = s;

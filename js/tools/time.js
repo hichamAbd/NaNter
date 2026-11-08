@@ -95,10 +95,8 @@ async function mountDateAdd(root, ctx) {
       { id: 'a', type: 'date', label: 'Start date', default: T },
       { id: 'op', type: 'seg', options: [['add', '＋ Add'], ['sub', '− Subtract']], default: 'add' },
       { id: 'mode', type: 'seg', options: [['cal', 'Calendar days'], ['work', 'Working days']], default: 'cal' },
-      { id: 'y', type: 'num', label: 'Years', when: v => v.mode === 'cal', placeholder: '0' },
-      { id: 'm', type: 'num', label: 'Months', when: v => v.mode === 'cal', placeholder: '0' },
-      { id: 'w', type: 'num', label: 'Weeks', when: v => v.mode === 'cal', placeholder: '0' },
       { id: 'd', type: 'num', label: 'Days', when: v => v.mode === 'cal', default: '30', presets: [[7, '7'], [14, '14'], [30, '30'], [45, '45'], [60, '60'], [90, '90'], [100, '100'], [180, '180'], [365, '365']] },
+      { id: 'ymw', type: 'hms', label: 'Plus', hint: 'years, months, weeks', parts: ['yr', 'mo', 'wk'], mul: [0, 0, 0], when: v => v.mode === 'cal', default: ['', '', ''] },
       { id: 'wd', type: 'num', label: 'Working days', when: v => v.mode === 'work', default: '10', presets: [[5, '5'], [10, '10'], [15, '15'], [20, '20'], [30, '30'], [60, '60']] },
       { id: 'wk', type: 'seg', label: 'Weekend', options: WEEKENDS, default: '60', when: v => v.mode === 'work' },
       { id: 'hol', type: 'toggle', label: 'Skip public holidays', hint: countryName(settings.country), when: v => v.mode === 'work' },
@@ -115,7 +113,8 @@ async function mountDateAdd(root, ctx) {
         res = D.addWorkingDays(v.a, s * v.wd, { weekend: weekendOf(v.wk), holidays: hol.set });
         if (hol.error) note = hol.error;
       } else {
-        const y = ok(v.y) ? v.y : 0, m = ok(v.m) ? v.m : 0, w = ok(v.w) ? v.w : 0, d = ok(v.d) ? v.d : 0;
+        const [py, pm, pw] = v.ymw_parts || [];
+        const y = ok(py) ? py : 0, m = ok(pm) ? pm : 0, w = ok(pw) ? pw : 0, d = ok(v.d) ? v.d : 0;
         const totalMonths = Math.trunc(y * 12 + m);
         const r1 = D.addMonths(v.a, s * totalMonths);
         if (totalMonths && D.parts(r1).d !== D.parts(v.a).d) note = `${D.fmtDate(v.a, 'short')} has no equivalent in that month, so the last day of the month is used.`;
@@ -345,7 +344,7 @@ function mountZones(root, ctx) {
 function mountTimeCalc(root, ctx) {
   const st = Object.assign({ tab: 'between', a: '09:00', b: '17:30', brk: '30', rows: [{ s: 1, h: '1', m: '30', sec: '' }, { s: 1, h: '2', m: '45', sec: '' }], ct: '22:30', cs: 1, ch: '8', cm: '15' }, ctx.state || {});
   const save = () => ctx.save(st);
-  const t = tabs([['between', 'Between times'], ['sum', 'Add durations'], ['clock', 'Time ± duration']], st.tab, v => { st.tab = v; save(); });
+  const t = tabs([['between', 'Between'], ['sum', 'Add up'], ['clock', 'Clock ±']], st.tab, v => { st.tab = v; save(); });
   root.append(t.el);
   // between
   const r1 = results();

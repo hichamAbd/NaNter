@@ -157,7 +157,7 @@ function mountBases(root, ctx) {
       const sub = h('div', { class: 'usub' });
       input.addEventListener('input', () => { st.src = id === 'custom' ? 'custom' : b; st.v = input.value; recompute(); });
       const label = h('button', { class: 'ulabel', type: 'button', onclick: () => input.value && copyText(input.value, `${input.value} (${name})`) }, h('b', null, name), h('span', null, `base ${b}`));
-      const extra = id === 'custom' ? selectEl(Array.from({ length: 35 }, (_, i) => [i + 2, `base ${i + 2}`]), st.custom, v => { st.custom = +v; draw(); }, { cls: 'unit-sel', aria: 'Base' }) : null;
+      const extra = id === 'custom' ? selectEl(Array.from({ length: 35 }, (_, i) => [i + 2, String(i + 2)]), st.custom, v => { st.custom = +v; draw(); }, { cls: 'unit-sel', aria: 'Base' }) : null;
       rows.push({ b, id, input, wrap, sub });
       return h('div', { class: 'urow' + ((st.src === b && id !== 'custom') || (st.src === 'custom' && id === 'custom') ? ' src' : '') }, h('div', null, label, extra), h('div', { class: 'uval' }, wrap, sub));
     }));
@@ -445,7 +445,7 @@ function mountRandom(root, ctx) {
   root.append(t.el);
   // number
   const nOut = h('div', { class: 'card display' });
-  const f = (k, l) => numField({ value: st[k], aria: l, negative: true, onInput: (n, raw) => { st[k] = raw; save(); } });
+  const f = (k, l, neg = true) => numField({ value: st[k], aria: l, negative: neg, onInput: (n, raw) => { st[k] = raw; save(); } });
   const goN = () => {
     const a = Math.ceil(parseNum(st.min)), b = Math.floor(parseNum(st.max)), c = Math.max(1, Math.min(1000, Math.round(parseNum(st.count) || 1)));
     if (!(Number.isFinite(a) && Number.isFinite(b) && b >= a)) return toast('Check min and max');
@@ -455,7 +455,7 @@ function mountRandom(root, ctx) {
     while (out.length < c) { const x = a + rnd(span); if (st.uniq && seen.has(x)) continue; seen.add(x); out.push(x); }
     nOut.replaceChildren(h('div', { class: 'd-big' }, out.join(', ')), h('div', { class: 'd-sub' }, `between ${a} and ${b}`));
   };
-  t.panes.num.append(h('div', { class: 'card form' }, row('From', f('min', 'From')), row('To', f('max', 'To')), row('How many', f('count', 'How many')), h('div', { class: 'frow toggle-row' }, toggle('No repeats', st.uniq, v => { st.uniq = v; save(); }))),
+  t.panes.num.append(h('div', { class: 'card form' }, row('From', f('min', 'From')), row('To', f('max', 'To')), row('How many', f('count', 'How many', false)), h('div', { class: 'frow toggle-row' }, toggle('No repeats', st.uniq, v => { st.uniq = v; save(); }))),
     h('button', { class: 'btn cat block', type: 'button', onclick: goN }, icon('dice'), 'Generate'), nOut);
   // dice
   const dOut = h('div', { class: 'card pad' });

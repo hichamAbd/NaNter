@@ -292,7 +292,7 @@ function dateAnswer(q) {
     if (r) {
       const unitName = { d: 'day', w: 'week', m: 'month', y: 'year', b: 'working day' }[u];
       const abs = String(Math.abs(n));
-      const params = u === 'b' ? { a: base, op: n < 0 ? 'sub' : 'add', mode: 'work', wd: abs } : { a: base, op: n < 0 ? 'sub' : 'add', mode: 'cal', y: u === 'y' ? abs : '', m: u === 'm' ? abs : '', w: u === 'w' ? abs : '', d: u === 'd' ? abs : '' };
+      const params = u === 'b' ? { a: base, op: n < 0 ? 'sub' : 'add', mode: 'work', wd: abs } : { a: base, op: n < 0 ? 'sub' : 'add', mode: 'cal', ymw: [u === 'y' ? abs : '', u === 'm' ? abs : '', u === 'w' ? abs : ''].join(','), d: u === 'd' ? abs : '' };
       return [{ query: `${D.fmtDate(base, 'short')} ${n < 0 ? '−' : '+'} ${abs} ${unitName}${abs === '1' ? '' : 's'} =`, value: D.fmtDate(r, 'full'), sub: D.relDays(D.dayNum(r) - D.dayNum(today)), copy: D.fmtDate(r, 'full'), tool: 'dateadd', params }];
     }
   }

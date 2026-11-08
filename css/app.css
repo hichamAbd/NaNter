@@ -596,3 +596,12 @@ button.set-row .i { color: var(--faint); width: 18px; }
 .shades { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin-bottom: 14px; }
 .shade { aspect-ratio: 1; border: 0; border-radius: 10px; cursor: pointer; box-shadow: inset 0 0 0 .5px var(--line-2); }
 .sec-title .btn.ghost { margin-left: auto; font-size: 14px; padding: 2px 4px; min-height: 0; text-transform: none; letter-spacing: 0; }
+.cur-val .num { max-width: none; }
+.res-hero.longv .res-v { font-size: 24px; line-height: 1.2; }
+.card.display:empty, .card.pad:empty { display: none; }
+.li-sub { display: block; }
+.btn-li .li-price { flex: none; max-width: 60%; text-align: right; }
+.uin .uin-boxes { flex: 1 1 auto; min-width: 72px; }
+.uin .unit-sel { flex: 0 0 auto; max-width: none; }
+.uin .unit-sel { flex: 0 1 auto; min-width: 0; max-width: 62%; }
+.uin .uin-boxes { flex: 1 1 72px; min-width: 60px; }

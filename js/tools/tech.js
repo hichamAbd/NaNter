@@ -186,7 +186,7 @@ function mountText(root, ctx) {
     const freq = new Map();
     words.forEach(w => { const k = w.toLowerCase(); if (k.length > 3) freq.set(k, (freq.get(k) || 0) + 1); });
     const top = [...freq].sort((a, b) => b[1] - a[1]).slice(0, 5).filter(x => x[1] > 1);
-    const mins = n => (n < 1 ? `${Math.max(1, Math.round(n * 60))} s` : `${fmt(n, { maxDec: 1 })} min`);
+    const mins = n => (!n ? '0 s' : n < 1 ? `${Math.max(1, Math.round(n * 60))} s` : `${fmt(n, { maxDec: 1 })} min`);
     out.render([
       { k: 'Words', v: fmt(words.length, { dec: 0 }), big: true, sub: `${fmt(chars, { dec: 0 })} characters` },
       { k: 'Characters', v: fmt(chars, { dec: 0 }), sub: `${fmt(noSpace, { dec: 0 })} without spaces` },

@@ -140,7 +140,7 @@ const coffee = {
   fields: [
     { id: 'meth', type: 'select', label: 'Method', options: METHODS, default: '16' },
     { id: 'r', type: 'num', label: 'Ratio 1 :', default: '16', when: v => v.meth === 'c' },
-    { id: 'mode', type: 'seg', options: [['cups', 'Cups to brew'], ['water', 'Water I have'], ['beans', 'Coffee I have']], default: 'cups' },
+    { id: 'mode', type: 'seg', label: 'Start from', options: [['cups', 'Cups'], ['water', 'Water'], ['beans', 'Coffee']], default: 'cups' },
     { id: 'cups', type: 'stepper', label: 'Cups', default: 2, min: 1, max: 20, when: v => v.mode === 'cups' },
     { id: 'cupml', type: 'num', label: 'Cup size', suffix: 'mL', default: '250', when: v => v.mode === 'cups', presets: [[30, 'Espresso'], [150, 'Small'], [250, 'Mug'], [350, 'Large']] },
     { id: 'water', type: 'num', label: 'Water', suffix: 'mL', default: '500', when: v => v.mode === 'water' },

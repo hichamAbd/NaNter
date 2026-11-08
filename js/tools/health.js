@@ -92,7 +92,7 @@ const hrzones = {
     { id: 'age', type: 'num', label: 'Age', suffix: 'years', default: '35' },
     { id: 'rest', type: 'num', label: 'Resting heart rate', hint: 'optional: more precise zones', suffix: 'bpm', placeholder: 'e.g. 60', default: '' },
     { id: 'max', type: 'num', label: 'Known max heart rate', hint: 'optional', suffix: 'bpm', placeholder: 'auto', default: '' },
-    { id: 'f', type: 'seg', options: [['tanaka', 'Tanaka (208 − 0.7 × age)'], ['fox', '220 − age']], default: 'tanaka' },
+    { id: 'f', type: 'seg', label: 'Formula', options: [['tanaka', 'Tanaka'], ['fox', '220 − age']], default: 'tanaka' },
   ],
   compute(v) {
     if (!okPos(v.age) && !okPos(v.max)) return [{ note: 'Enter your age.' }];
@@ -109,14 +109,16 @@ const hrzones = {
 
 const duedate = {
   fields: [
-    { id: 'm', type: 'seg', options: [['lmp', 'Last period'], ['conc', 'Conception'], ['ivf5', 'IVF day 5'], ['ivf3', 'IVF day 3']], default: 'lmp' },
-    { id: 'd', type: 'date', label: 'Date', default: () => D.addDays(D.todayISO(), -70) },
+    { id: 'm', type: 'seg', options: [['lmp', 'Period'], ['conc', 'Conception'], ['ivf5', 'IVF d5'], ['ivf3', 'IVF d3']], default: 'lmp' },
+    { id: 'd', type: 'date', label: 'First day of last period', default: () => D.addDays(D.todayISO(), -70), when: v => v.m === 'lmp' },
+    { id: 'd2', type: 'date', label: 'Date', default: () => D.addDays(D.todayISO(), -56), when: v => v.m !== 'lmp' },
     { id: 'cyc', type: 'num', label: 'Cycle length', suffix: 'days', default: '28', when: v => v.m === 'lmp' },
   ],
   compute(v) {
-    if (!D.isValidISO(v.d)) return [{ note: 'Pick a date.' }];
+    const dd = v.m === 'lmp' ? v.d : v.d2;
+    if (!D.isValidISO(dd)) return [{ note: 'Pick a date.' }];
     const cyc = v.m === 'lmp' && ok(v.cyc) ? v.cyc : 28;
-    const lmp = v.m === 'lmp' ? D.addDays(v.d, Math.round(cyc - 28)) : v.m === 'conc' ? D.addDays(v.d, -14) : v.m === 'ivf5' ? D.addDays(v.d, -19) : D.addDays(v.d, -17);
+    const lmp = v.m === 'lmp' ? D.addDays(dd, Math.round(cyc - 28)) : v.m === 'conc' ? D.addDays(dd, -14) : v.m === 'ivf5' ? D.addDays(dd, -19) : D.addDays(dd, -17);
     const due = D.addDays(lmp, 280);
     const today = D.todayISO();
     const ga = D.dayNum(today) - D.dayNum(lmp);
@@ -155,7 +157,7 @@ function mountSleep(root, ctx) {
     for (const c of [6, 5, 4, 3]) {
       const dur = c * 5400;
       const x = st.mode === 'wake' ? t - dur - 900 : t + 900 + dur;
-      items.push({ k: `${c} cycles · ${D.hmText(dur).replace(' 00 min', ' h').replace(/ h (\d+) min/, ' h $1')}`, v: fmtT(x), tone: c >= 5 ? 'good' : null, sub: c >= 5 ? 'Recommended' : c === 4 ? 'Short night' : 'Nap territory' });
+      items.push({ k: `${c} cycles · ${Math.floor(dur / 3600)} h${dur % 3600 ? ' ' + (dur % 3600) / 60 : ''}`, v: fmtT(x), tone: c >= 5 ? 'good' : null, sub: c >= 5 ? 'Recommended' : c === 4 ? 'Short night' : 'Nap territory' });
     }
     out.render(items);
   }

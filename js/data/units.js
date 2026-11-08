@@ -403,19 +403,20 @@ export const CATEGORIES = {
       { id: 'dpw', label: 'Days per week', def: 5, suffix: 'days' },
       { id: 'wpy', label: 'Paid weeks per year', def: 52, suffix: 'wk' },
     ], units: [
+      // base = pay per hour, so an amount per period is divided by the hours in that period
       lin('hour', 'Hourly', '/ hour', 1, { c: 1 }),
-      lin('day', 'Daily', '/ day', p => p.hpw / p.dpw, { c: 1 }),
-      lin('week', 'Weekly', '/ week', p => p.hpw, { c: 1 }),
-      lin('biweek', 'Every 2 weeks', '/ 2 weeks', p => p.hpw * 2, { c: 1 }),
-      lin('month', 'Monthly', '/ month', p => p.hpw * p.wpy / 12, { c: 1 }),
-      lin('year', 'Yearly', '/ year', p => p.hpw * p.wpy, { c: 1 }),
+      lin('day', 'Daily', '/ day', p => 1 / (p.hpw / p.dpw), { c: 1 }),
+      lin('week', 'Weekly', '/ week', p => 1 / p.hpw, { c: 1 }),
+      lin('biweek', 'Every 2 weeks', '/ 2 weeks', p => 1 / (p.hpw * 2), { c: 1 }),
+      lin('month', 'Monthly', '/ month', p => 1 / (p.hpw * p.wpy / 12), { c: 1 }),
+      lin('year', 'Yearly', '/ year', p => 1 / (p.hpw * p.wpy), { c: 1 }),
     ],
   },
   oven: {
     name: 'Oven temperature', base: '°C', units: [
       U('c', 'Celsius (conventional)', '°C', null, { c: 1, to: x => x, from: b => b, step: 5 }),
       U('cfan', 'Celsius (fan / convection)', '°C fan', null, { c: 1, to: x => x + 20, from: b => b - 20, step: 5 }),
-      U('f', 'Fahrenheit', '°F', null, { c: 1, to: x => (x - 32) * 5 / 9, from: b => b * 9 / 5 + 32, step: 5 }),
+      U('f', 'Fahrenheit', '°F', null, { c: 1, to: x => (x - 32) * 5 / 9, from: b => b * 9 / 5 + 32, step: 25 }),
       U('gas', 'Gas mark', 'Gas', null, {
         c: 1, options: [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => [g, g === 0.25 ? '¼' : g === 0.5 ? '½' : String(g)]),
         to: g => ((g >= 1 ? 250 + 25 * g : 200 + 100 * g) - 32) * 5 / 9,
@@ -461,7 +462,7 @@ export const CATEGORIES = {
     ],
   },
   blood: {
-    name: 'Blood values', groups: {
+    name: 'Blood values', maxDec: 2, groups: {
       glucose: { name: 'Glucose', units: [lin('mmol', 'Millimoles per liter', 'mmol/L', 1, { c: 1 }), lin('mgdl', 'Milligrams per deciliter', 'mg/dL', 1 / 18.016, { c: 1 })] },
       a1c: {
         name: 'HbA1c', units: [
@@ -500,7 +501,7 @@ export function localName(name) {
   let lang = 'en-US';
   try { lang = navigator.language || 'en-US'; } catch { }
   if (/^en-US/i.test(lang) || !/^en/i.test(lang)) return name;
-  return name.replace(/meter/g, 'metre').replace(/Meter/g, 'Metre').replace(/liter/g, 'litre').replace(/Liter/g, 'Litre');
+  return name.replace(/(\w*)([mM])eter/g, (m, pre, M) => (/dia$/i.test(pre) ? m : pre + M + 'etre')).replace(/([lL])iter/g, '$1itre');
 }
 
 export function unitsOf(catId) {
