@@ -147,8 +147,40 @@ export function incomeTax({ rni, couple = false, kids = 0, alone = false, credit
 /* ---------- UI ---------- */
 const E = x => fmtMoney(x, 'EUR');
 const E0 = x => fmtMoney(x, 'EUR', { dec: 0 });
-const PERIOD = { m: 1, y: 12 };
 const PER_LABEL = { m: 'a month', y: 'a year', h: 'an hour' };
+
+/**
+ * Everything the pay tool shows, for a regular month and for the whole year.
+ * per: 'm' | 'y' | 'h'. months: 12, or 13 when there's a 13th month (one more month's pay, usually with December's).
+ * A yearly amount is spread over `months` payments; the mutuelle is only taken 12 times.
+ */
+export function payFigures({ dir = 'b2n', amount, per = 'm', months = 12, hours = 35, statut = 'noncadre', primes = 0, alsace = false, mutuelle = 0, pas = null }) {
+  const extra = months === 13 ? 1 : 0;
+  const mut = mutuelle > 0 ? mutuelle : 0;
+  const perHour = hours * 52 / 12;
+  const toMonth = per === 'h' ? perHour : per === 'y' ? 1 / months : 1;
+  const mAmt = per === 'y' && dir === 'n2b' ? (amount - extra * mut) / months : amount * toMonth;
+  const primesM = statut === 'fonct' ? Math.max(0, primes || 0) * toMonth : 0;
+  const opts = { statut, alsace: alsace && statut !== 'fonct', mutuelle: mut, primes: primesM };
+  const brutM = dir === 'b2n' ? mAmt : netToBrut(mAmt, opts);
+  const r = brutToNet(brutM, opts);
+  const r13 = brutToNet(brutM, { ...opts, mutuelle: 0 });
+  const auto = pas == null || !Number.isFinite(pas);
+  const rate = auto ? neutralRate(r.taxable) : Math.max(0, Math.min(60, pas));
+  const pasM = r.taxable * rate / 100;
+  // Paid with December's pay: the neutral grid then applies to that bigger month as a whole.
+  const dec = r.taxable + r13.taxable;
+  const pas13 = extra ? (auto ? dec * neutralRate(dec) / 100 - pasM : r13.taxable * rate / 100) : 0;
+  const year = {
+    brut: brutM * months,
+    total: r.total * 12 + r13.total * extra,
+    net: r.net * 12 + r13.net * extra,
+    taxable: r.taxable * 12 + r13.taxable * extra,
+    pas: pasM * 12 + pas13,
+  };
+  year.after = year.net - year.pas;
+  return { months, brutM, primesM, r, r13: extra ? r13 : null, pas13, auto, rate, pasM, afterM: r.net - pasM, year, perHour };
+}
 
 const brutnet = {
   fields: [
@@ -157,6 +189,7 @@ const brutnet = {
     { id: 'net', type: 'money', currency: 'EUR', label: 'Net pay', hint: 'before income tax', default: '2000', when: v => v.dir === 'n2b' },
     { id: 'per', type: 'seg', options: [['m', 'Monthly'], ['y', 'Yearly'], ['h', 'Hourly']], default: 'm' },
     { id: 'hours', type: 'num', label: 'Hours a week', default: '35', suffix: 'h', when: v => v.per === 'h' },
+    { id: 'months', type: 'seg', options: [['12', '12 months a year'], ['13', '13 months a year']], default: '12' },
     { group: '' },
     { id: 'statut', type: 'select', label: 'Status', options: STATUTS, default: 'noncadre', stack: true },
     { id: 'primes', type: 'money', currency: 'EUR', label: 'Of which bonuses', hint: 'primes & indemnités, same period', placeholder: '0', default: '', when: v => v.statut === 'fonct' },
@@ -166,36 +199,35 @@ const brutnet = {
   ],
   compute(v, ctx) {
     const per = v.per || 'm';
-    const hrs = okPos(v.hours) ? v.hours : 35;
-    const toMonth = per === 'h' ? hrs * 52 / 12 : 1 / PERIOD[per];
     const amount = v.dir === 'b2n' ? v.brut : v.net;
     if (!okPos(amount)) return [{ note: v.dir === 'b2n' ? 'Enter your gross pay.' : 'Enter the net pay you want.' }];
-    const mAmt = amount * toMonth;
-    const primesM = v.statut === 'fonct' && okPos(v.primes) ? v.primes * toMonth : 0;
-    const opts = { statut: v.statut, alsace: v.alsace && v.statut !== 'fonct', mutuelle: okPos(v.mutuelle) ? v.mutuelle : 0, primes: primesM };
-    const brutM = v.dir === 'b2n' ? mAmt : netToBrut(mAmt, opts);
-    if (v.statut === 'fonct' && primesM > brutM) return [{ note: 'The bonuses can’t be more than the gross pay.', tone: 'warn' }];
-    const r = brutToNet(brutM, opts);
-    const auto = !ok(v.pas);
-    const rate = auto ? neutralRate(r.taxable) : Math.max(0, Math.min(60, v.pas));
-    const pas = r.taxable * rate / 100;
-    const after = r.net - pas;
-    const inPer = x => x / toMonth;
-    const perTxt = PER_LABEL[per];
+    const months = String(v.months) === '13' ? 13 : 12;
+    const P = payFigures({
+      dir: v.dir, amount, per, months, hours: okPos(v.hours) ? v.hours : 35, statut: v.statut, primes: okPos(v.primes) ? v.primes : 0,
+      alsace: !!v.alsace, mutuelle: okPos(v.mutuelle) ? v.mutuelle : 0, pas: ok(v.pas) ? v.pas : null,
+    });
+    const { r, year } = P;
+    if (v.statut === 'fonct' && P.primesM > P.brutM) return [{ note: 'The bonuses can’t be more than the gross pay.', tone: 'warn' }];
+    if (!(P.brutM > 0)) return [{ note: 'Enter the net pay you want.' }];
+    // In the period you chose; "yearly" is the real total for the year, 13th month included.
+    const show = (m, y) => (per === 'y' ? y : per === 'h' ? m / P.perHour : m);
+    const yr = months === 13 ? 'a year (13 months)' : 'a year';
+    const monthTxt = months === 13 ? `${E(r.net)} a month + a 13th month` : `${E(r.net)} a month`;
     const items = v.dir === 'b2n'
-      ? [{ k: 'Net pay before income tax', v: E(inPer(r.net)), big: true, sub: per === 'm' ? `${E0(r.net * 12)} a year` : `${E(r.net)} a month` }]
-      : [{ k: 'Gross pay (brut)', v: E(inPer(brutM)), big: true, sub: per === 'm' ? `${E0(brutM * 12)} a year` : `${E(brutM)} a month` }];
+      ? [{ k: 'Net pay before income tax', v: E(show(r.net, year.net)), big: true, sub: per === 'y' ? monthTxt : `${E0(year.net)} ${yr}` }]
+      : [{ k: 'Gross pay (brut)', v: E(show(P.brutM, year.brut)), big: true, sub: per === 'y' ? `${E(P.brutM)} a month × ${months}` : `${E0(year.brut)} ${yr}` }];
+    if (v.dir === 'n2b') items.push({ k: 'Net pay before income tax', v: E(show(r.net, year.net)), sub: per === 'y' ? monthTxt : null });
     items.push(
-      { k: 'Net after withholding tax', v: E(inPer(after)), sub: `${fmt(rate)} % ${auto ? 'neutral rate' : 'your rate'}: ${E(inPer(pas))} withheld ${perTxt}` },
-      { k: 'Net taxable (net imposable)', v: E(inPer(r.taxable)), sub: 'what your income tax is based on' },
-      { k: 'Your contributions', v: E(inPer(r.total)), sub: `${fmt(r.rate, { maxDec: 1 })} % of gross` },
+      { k: 'Net after withholding tax', v: E(show(P.afterM, year.after)), sub: `${fmt(P.rate)} % ${P.auto ? 'neutral rate' : 'your rate'}: ${E(show(P.pasM, year.pas))} withheld ${PER_LABEL[per]}` },
+      { k: 'Net taxable (net imposable)', v: E(show(r.taxable, year.taxable)), sub: 'what your income tax is based on' },
+      { k: 'Your contributions', v: E(show(r.total, year.total)), sub: `${fmt(r.rate, { maxDec: 1 })} % of gross` },
     );
-    if (v.dir === 'n2b') items.splice(1, 0, { k: 'Net pay before income tax', v: E(inPer(r.net)) });
-    items.push({ head: 'Month and year' }, {
+    if (P.r13) items.push({ k: '13th month, net', v: E(P.r13.net), sub: `${E(P.r13.brut)} gross, usually paid with December’s pay · ${E(P.pas13)} withheld${P.auto ? ' (neutral rate on the double month)' : ''}` });
+    items.push({ head: months === 13 ? 'Month and year (13 months)' : 'Month and year' }, {
       table: {
         cols: ['', 'Month', 'Year'],
-        rows: [['Gross', r.brut, 1], ['Contributions', -r.total], ['Net before tax', r.net, 1], ['Net taxable', r.taxable], ['Withholding', -pas], ['Net after tax', after, 1]]
-          .map(([k, x]) => [k, fmtFixed(x, 2), fmtFixed(x * 12, 0)]),
+        rows: [['Gross', r.brut, year.brut], ['Contributions', -r.total, -year.total], ['Net before tax', r.net, year.net], ['Net taxable', r.taxable, year.taxable], ['Withholding', -P.pasM, -year.pas], ['Net after tax', P.afterM, year.after]]
+          .map(([k, m, y]) => [k, fmtFixed(m, 2), fmtFixed(y, 0)]),
         hi: 5,
       },
     });
@@ -205,8 +237,8 @@ const brutnet = {
         rows: r.lines.map(l => [l.label, l.rate != null ? `${fmt(l.rate, { maxDec: 3 })} %` : '', fmtFixed(l.amount, 2)]),
       },
     });
-    if (auto) items.push({ node: h('div', { class: 'custom' }, h('button', { class: 'btn block', type: 'button', onclick: () => ctx.open('impot', { kind: 'sal', inc1: String(Math.round(r.taxable * 12)) }) }, 'Estimate your own tax rate')) });
-    items.push({ note: `${PAYROLL.year} rates, ceiling (PMSS) ${E0(PAYROLL.pmss)} a month. Full-time ceiling assumed; ${v.statut === 'fonct' ? 'no SFT or residence allowance specifics' : 'no overtime exemption, no company-specific prévoyance'}. A payslip can differ by a few euros.` });
+    if (P.auto) items.push({ node: h('div', { class: 'custom' }, h('button', { class: 'btn block', type: 'button', onclick: () => ctx.open('impot', { kind: 'sal', inc1: String(Math.round(year.taxable)) }) }, 'Estimate your own tax rate')) });
+    items.push({ note: `${PAYROLL.year} rates, ceiling (PMSS) ${E0(PAYROLL.pmss)} a month. Full-time ceiling assumed; ${v.statut === 'fonct' ? 'no SFT or residence allowance specifics' : 'no overtime exemption, no company-specific prévoyance'}.${months === 13 ? ' The 13th month is counted like a regular month’s pay.' : ''} A payslip can differ by a few euros.` });
     return items;
   },
 };

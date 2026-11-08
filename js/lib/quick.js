@@ -10,7 +10,7 @@ import { wall, offsetMin, instantOf, offsetLabel, fmtTime, fmtDay } from './tz.j
 import { ALL as INGREDIENTS, KU, ML_PER_CUP } from '../tools/kitchen.js';
 import { toBig, fromBig, toRoman, fromRoman } from '../tools/math.js';
 import { haversine, flightMinutes, findCity } from '../tools/travel.js';
-import { brutToNet, netToBrut, incomeTax, salaryAllowance } from '../tools/frtax.js';
+import { payFigures, incomeTax, salaryAllowance } from '../tools/frtax.js';
 
 const NUM = String.raw`[-−]?(?:\d+\s+\d+\/\d+|\d+\/\d+|\d[\d\s.,'’]*\d|\d|[.,]\d+)(?:e[-+]?\d+)?`;
 const SEP = String.raw`\s+(?:to|in|into|as|en|vers|=)\s+|\s*(?:->|→|=>|=)\s*`;
@@ -443,7 +443,9 @@ function distAnswer(q) {
 /* ---------- France: brut ↔ net, income tax ---------- */
 const EUR = x => fmt(x, { dec: 0 }) + ' €';
 function payAnswer(q) {
-  const s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\?$/, '').trim();
+  let s = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\?$/, '').trim();
+  const m13 = /\b(?:sur|over|on)?\s*13\s*(?:mois|months)\b/.test(s);
+  s = s.replace(/\s*\b(?:sur|over|on)?\s*1[23]\s*(?:mois|months)\b/, '').trim();
   const m = new RegExp(`^(?:salaire\\s+|salary\\s+)?(${NUM})\\s*(k)?\\s*(?:€|eur|euros?)?\\s*(brut|gross|net)\\s*(?:(?:en|to|in|into|->|→|=)\\s*)?(net|brut|gross)?\\s*(mensuel|par mois|\\/mois|a month|per month|monthly|annuel|par an|\\/an|a year|per year|yearly)?$`).exec(s);
   if (!m) return [];
   const from = m[3] === 'gross' ? 'brut' : m[3], to = m[4] === 'gross' ? 'brut' : m[4];
@@ -452,16 +454,18 @@ function payAnswer(q) {
   let x = readNum(m[1]);
   if (m[2]) x *= 1000;
   if (!(x > 0)) return [];
-  const yearly = m[5] ? /an|year|annuel/.test(m[5]) : x >= 10000;
-  const mo = yearly ? x / 12 : x;
-  const per = yearly ? ' a year' : ' a month';
-  const k = yearly ? 12 : 1;
+  const yearly = m[5] ? /an|year|annuel/.test(m[5]) : x >= 10000 || m13;
+  const months = m13 ? 13 : 12;
+  const per = yearly ? 'y' : 'm';
+  const perTxt = yearly ? (m13 ? ' a year (13 months)' : ' a year') : ' a month';
+  const params = { dir: from === 'brut' ? 'b2n' : 'n2b', [from === 'brut' ? 'brut' : 'net']: String(x), per, months: String(months) };
   if (from === 'brut') {
-    const a = brutToNet(mo), c = brutToNet(mo, { statut: 'cadre' });
-    return [{ query: `${EUR(x)} gross${per} →`, value: `${EUR(a.net * k)} net`, sub: `before income tax · non-cadre (cadre ${EUR(c.net * k)}) · France 2026`, tool: 'brutnet', params: { dir: 'b2n', brut: String(x), per: yearly ? 'y' : 'm' } }];
+    const a = payFigures({ amount: x, per, months }), c = payFigures({ amount: x, per, months, statut: 'cadre' });
+    const pick = f => (yearly ? f.year.net : f.r.net);
+    return [{ query: `${EUR(x)} gross${perTxt} →`, value: `${EUR(pick(a))} net`, sub: `before income tax · non-cadre (cadre ${EUR(pick(c))})${yearly && m13 ? ` · ${EUR(a.r.net)} a month` : ''} · France 2026`, tool: 'brutnet', params }];
   }
-  const b = netToBrut(mo);
-  return [{ query: `${EUR(x)} net${per} →`, value: `${EUR(b * k)} gross`, sub: 'non-cadre, France 2026', tool: 'brutnet', params: { dir: 'n2b', net: String(x), per: yearly ? 'y' : 'm' } }];
+  const b = payFigures({ dir: 'n2b', amount: x, per, months });
+  return [{ query: `${EUR(x)} net${perTxt} →`, value: `${EUR(yearly ? b.year.brut : b.brutM)} gross`, sub: `non-cadre${yearly && m13 ? ` · ${EUR(b.brutM)} a month` : ''} · France 2026`, tool: 'brutnet', params }];
 }
 function taxAnswer(q) {
   const s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\?$/, '').trim();
