@@ -16,6 +16,8 @@ import { grainPlan } from '../js/tools/kitchen.js';
 import { bridgeInfo, schoolPeriods } from '../js/tools/holidays.js';
 import { wifiPayload, vcardPayload } from '../js/tools/qrtool.js';
 import { gravityFromOrientation, toScreen, tilts } from '../js/tools/phone.js';
+import * as FR from '../js/tools/frtax.js';
+import * as GOAL from '../js/tools/goal.js';
 
 let pass = 0, fail = 0;
 const near = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(b));
@@ -162,6 +164,13 @@ eq('q data', await A('100 mbps in MB/s'), '12.5 MB/s');
 eq('q cooking', await A('1 cup flour in grams'), '125 grams');
 eq('q date parse', parseDate('25 dec', 'future').slice(5), '12-25');
 eq('q offset', (await answer('today + 7 days'))[0]?.tool, 'dateadd');
+eq('q brut net', await A('2500 brut en net'), '1,979 € net');
+eq('q brut short', (await answer('2500 brut'))[0]?.tool, 'brutnet');
+eq('q gross yearly k', await A('36k gross'), '28,498 € net');
+eq('q net en brut', await A('1979 net en brut'), '2,500 € gross');
+eq('q plain net is not pay', (await answer('2500 net')).some(a => a.tool === 'brutnet'), false);
+eq('q impot', await A('impôt 30000'), (() => { const t = FR.incomeTax({ rni: 27000 }); return t.final.toLocaleString('en-US') + ' €'; })());
+eq('q impot tool', (await answer('income tax 45k'))[0]?.tool, 'impot');
 
 
 // --- QR encoder: published known answers ---
@@ -257,6 +266,59 @@ eq('level right side down', Math.round(lv(0, 3).x), 3);
 eq('level top raised', Math.round(lv(5, 0).y), -5);
 eq('level edge clockwise', Math.round(lv(88, 90).edge), 2);
 eq('level edge landscape', Math.round(lv(2, -88, 90).edge), 2);
+
+// --- France: brut ↔ net (2026 rates) ---
+const bn = FR.brutToNet(2500);
+eq('brut 2500 non-cadre net', Math.round(bn.net * 100) / 100, 1978.99);
+eq('brut 2500 net imposable', bn.taxable, 2050.225, 1e-6);
+eq('brut 2500 contributions', Math.round(bn.total * 100) / 100, 521.01);
+eq('brut 6000 cadre has T2 + CET + APEC', ['Retraite compl. T2', 'CET', 'APEC'].every(l => FR.brutToNet(6000, { statut: 'cadre' }).lines.some(x => x.label === l)), true);
+eq('brut 3000 no CET under PMSS', FR.brutToNet(3000).lines.some(x => x.label === 'CET'), false);
+eq('fonctionnaire 2500 no primes', Math.round(FR.brutToNet(2500, { statut: 'fonct' }).net * 100) / 100, 1984.24);
+eq('fonct RAFP capped at 20% TIB', FR.brutToNet(3000, { statut: 'fonct', primes: 1000 }).lines.find(l => l.label === 'RAFP').base, 400);
+eq('alsace adds 1.30%', Math.round((FR.brutToNet(2500).net - FR.brutToNet(2500, { alsace: true }).net) * 100) / 100, 32.5);
+eq('mutuelle lowers net', Math.round((FR.brutToNet(2500).net - FR.brutToNet(2500, { mutuelle: 40 }).net) * 100) / 100, 40);
+eq('net → brut round trip', FR.netToBrut(FR.brutToNet(3456).net), 3456, 1e-6);
+eq('net → brut cadre round trip', FR.netToBrut(FR.brutToNet(7000, { statut: 'cadre' }).net, { statut: 'cadre' }), 7000, 1e-6);
+eq('neutral rate 2500', FR.neutralRate(2500), 5.3);
+eq('neutral rate under 1635', FR.neutralRate(1634.99), 0);
+eq('neutral rate top', FR.neutralRate(60000), 43);
+
+// --- France: income tax (barème 2026, 2025 income) ---
+eq('allowance 10%', FR.salaryAllowance(30000), 3000);
+eq('allowance min', FR.salaryAllowance(3000), 509);
+eq('allowance not above salary', FR.salaryAllowance(300), 300);
+eq('allowance max', FR.salaryAllowance(200000), 14555);
+eq('parts couple 3 kids', FR.familyParts({ couple: true, kids: 3 }), 4);
+eq('parts single parent 1 kid', FR.familyParts({ kids: 1, alone: true }), 2);
+eq('tax single 30000', FR.incomeTax({ rni: 30000 }).net, 2104);
+eq('tax single 30000 TMI', FR.incomeTax({ rni: 30000 }).tmi, 30);
+eq('tax single 27000 with décote', FR.incomeTax({ rni: 27000 }).net, 1564);
+eq('tax single 13000 wiped by décote', FR.incomeTax({ rni: 13000 }).net, 0);
+eq('tax couple 2 kids 50000', FR.incomeTax({ rni: 50000, couple: true, kids: 2 }).net, 946);
+const capT = FR.incomeTax({ rni: 150000, couple: true, kids: 2 });
+eq('family cap applies', [capT.capped, capT.net, capT.tmi], [true, 27594, 30]);
+eq('single parent cap', FR.incomeTax({ rni: 80000, kids: 1, alone: true }).net, 12842);
+eq('under 61 € not collected', (() => { const t = FR.incomeTax({ rni: 13400 }); return t.net === 0; })(), true);
+eq('CEHR 300k single', FR.incomeTax({ rni: 300000 }).cehr, 1500);
+eq('credits give refund', FR.incomeTax({ rni: 13000, credits: 500 }).final, -500);
+
+// --- savings goal ---
+const TD = '2026-11-08';
+eq('goal per month', GOAL.goalPlan({ target: 5000, saved: 500, mode: 'date', date: '2027-11-08' }, TD).perMonth, 375);
+const gi = GOAL.goalPlan({ target: 5000, saved: 500, mode: 'date', date: '2027-11-08', rate: 3 }, TD);
+eq('goal with interest reaches target', gi.final, 5000, 1e-9);
+eq('goal interest lowers deposit', gi.perMonth < 375, true);
+const gm = GOAL.goalPlan({ target: 2050, saved: 0, mode: 'monthly', monthly: 200 }, TD);
+eq('goal monthly months + last deposit', [gm.n, gm.end, Math.round(gm.last)], [11, '2027-10-08', 50]);
+const gs = GOAL.goalPlan({ target: 1000, saved: 0, mode: 'date', date: '2026-12-25' }, TD);
+eq('goal short deadline', [gs.n, gs.perMonth, gs.weeks, gs.days], [1, 1000, 6, 47]);
+eq('goal done', GOAL.goalPlan({ target: 100, saved: 150, mode: 'date', date: '2027-01-01' }, TD).done, true);
+eq('goal date passed', GOAL.goalPlan({ target: 100, saved: 0, mode: 'date', date: '2026-01-01' }, TD).past, true);
+eq('goal never without deposits', GOAL.goalPlan({ target: 100, saved: 0, mode: 'monthly', monthly: 0 }, TD).never, true);
+eq('expected by now (monthly)', GOAL.expectedByNow({ target: 1200, saved: 0, mode: 'monthly', monthly: 100 }, '2026-08-08', TD), 300);
+eq('expected by now (date, linear)', Math.round(GOAL.expectedByNow({ target: 1200, saved: 0, mode: 'date', date: '2027-08-08' }, '2026-08-08', TD)), 302);
+eq('nice amounts', [75, 150, 333, 750, 1234].map(GOAL.niceAmount), [75, 150, 330, 750, 1200]);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

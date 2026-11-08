@@ -1,7 +1,7 @@
 // Offline: the whole app is cached at install, so it opens instantly and works without a connection.
 // Exchange-rate and holiday APIs are cross-origin and never cached here (the app keeps its own copy).
 // Bump VERSION on every deploy: the new worker re-downloads everything, then the page reloads once.
-const VERSION = 'nanter-v3';
+const VERSION = 'nanter-v4';
 const SHELL = [
   './',
   'index.html',
@@ -32,6 +32,8 @@ const SHELL = [
   'js/lib/sun.js',
   'js/lib/tz.js',
   'js/tools/calc.js',
+  'js/tools/frtax.js',
+  'js/tools/goal.js',
   'js/tools/health.js',
   'js/tools/holidays.js',
   'js/tools/home.js',

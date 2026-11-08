@@ -10,6 +10,7 @@ import { wall, offsetMin, instantOf, offsetLabel, fmtTime, fmtDay } from './tz.j
 import { ALL as INGREDIENTS, KU, ML_PER_CUP } from '../tools/kitchen.js';
 import { toBig, fromBig, toRoman, fromRoman } from '../tools/math.js';
 import { haversine, flightMinutes, findCity } from '../tools/travel.js';
+import { brutToNet, netToBrut, incomeTax, salaryAllowance } from '../tools/frtax.js';
 
 const NUM = String.raw`[-−]?(?:\d+\s+\d+\/\d+|\d+\/\d+|\d[\d\s.,'’]*\d|\d|[.,]\d+)(?:e[-+]?\d+)?`;
 const SEP = String.raw`\s+(?:to|in|into|as|en|vers|=)\s+|\s*(?:->|→|=>|=)\s*`;
@@ -213,7 +214,7 @@ function percentAnswer(q) {
 /* ---------- dates ---------- */
 const MONTHS = { jan: 1, january: 1, janvier: 1, janv: 1, feb: 2, february: 2, fev: 2, fevr: 2, fevrier: 2, mar: 3, march: 3, mars: 3, apr: 4, april: 4, avr: 4, avril: 4, may: 5, mai: 5, jun: 6, june: 6, juin: 6, jul: 7, july: 7, juil: 7, juillet: 7, aug: 8, august: 8, aout: 8, sep: 9, sept: 9, september: 9, septembre: 9, oct: 10, october: 10, octobre: 10, nov: 11, november: 11, novembre: 11, dec: 12, december: 12, decembre: 12 };
 const WD = { sunday: 0, sun: 0, dimanche: 0, monday: 1, mon: 1, lundi: 1, tuesday: 2, tue: 2, mardi: 2, wednesday: 3, wed: 3, mercredi: 3, thursday: 4, thu: 4, jeudi: 4, friday: 5, fri: 5, vendredi: 5, saturday: 6, sat: 6, samedi: 6 };
-const deacc = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const deacc = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function nextYearly(m, d, dir) {
   const today = D.todayISO(); const y = +today.slice(0, 4);
   const mk = yy => `${yy}-${String(m).padStart(2, '0')}-${String(Math.min(d, D.daysInMonth(yy, m))).padStart(2, '0')}`;
@@ -439,13 +440,47 @@ function distAnswer(q) {
   return [{ query: `${a.name} → ${b.name} (straight line)`, value: metric ? `${fmt(km, { maxDec: 0 })} km` : `${fmt(km / 1.609344, { maxDec: 0 })} mi`, sub: `${metric ? fmt(km / 1.609344, { maxDec: 0 }) + ' mi' : fmt(km, { maxDec: 0 }) + ' km'}${fm ? ` · flight ≈ ${Math.floor(fm / 60)} h ${String(fm % 60).padStart(2, '0')}` : ''}`, tool: 'citydist', params: { a: a.name, b: b.name } }];
 }
 
+/* ---------- France: brut ↔ net, income tax ---------- */
+const EUR = x => fmt(x, { dec: 0 }) + ' €';
+function payAnswer(q) {
+  const s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\?$/, '').trim();
+  const m = new RegExp(`^(?:salaire\\s+|salary\\s+)?(${NUM})\\s*(k)?\\s*(?:€|eur|euros?)?\\s*(brut|gross|net)\\s*(?:(?:en|to|in|into|->|→|=)\\s*)?(net|brut|gross)?\\s*(mensuel|par mois|\\/mois|a month|per month|monthly|annuel|par an|\\/an|a year|per year|yearly)?$`).exec(s);
+  if (!m) return [];
+  const from = m[3] === 'gross' ? 'brut' : m[3], to = m[4] === 'gross' ? 'brut' : m[4];
+  if (from === 'net' && to !== 'brut') return [];
+  if (to && to === from) return [];
+  let x = readNum(m[1]);
+  if (m[2]) x *= 1000;
+  if (!(x > 0)) return [];
+  const yearly = m[5] ? /an|year|annuel/.test(m[5]) : x >= 10000;
+  const mo = yearly ? x / 12 : x;
+  const per = yearly ? ' a year' : ' a month';
+  const k = yearly ? 12 : 1;
+  if (from === 'brut') {
+    const a = brutToNet(mo), c = brutToNet(mo, { statut: 'cadre' });
+    return [{ query: `${EUR(x)} gross${per} →`, value: `${EUR(a.net * k)} net`, sub: `before income tax · non-cadre (cadre ${EUR(c.net * k)}) · France 2026`, tool: 'brutnet', params: { dir: 'b2n', brut: String(x), per: yearly ? 'y' : 'm' } }];
+  }
+  const b = netToBrut(mo);
+  return [{ query: `${EUR(x)} net${per} →`, value: `${EUR(b * k)} gross`, sub: 'non-cadre, France 2026', tool: 'brutnet', params: { dir: 'n2b', net: String(x), per: yearly ? 'y' : 'm' } }];
+}
+function taxAnswer(q) {
+  const s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\?$/, '').trim();
+  const m = new RegExp(`^(?:impots?(?: sur le revenu)?|ir|income tax|tax)\\s+(?:sur|on|for|de|pour)?\\s*(${NUM})\\s*(k)?\\s*(?:€|eur|euros?)?$`).exec(s)
+    || new RegExp(`^(${NUM})\\s*(k)?\\s*(?:€|eur|euros?)?\\s+(?:impots?|income tax)$`).exec(s);
+  if (!m) return [];
+  let x = readNum(m[1]); if (m[2]) x *= 1000;
+  if (!(x >= 1000)) return [];
+  const t = incomeTax({ rni: x - salaryAllowance(x) });
+  return [{ query: `Income tax on ${EUR(x)} of salaries (single, France)`, value: EUR(t.final), sub: `average ${fmtPct(t.avg, 1)} · marginal ${t.tmi} % · 2026 barème`, tool: 'impot', params: { kind: 'sal', inc1: String(x), sit: 'single', kids: '0' } }];
+}
+
 /** Up to three answers for a query. */
 export async function answer(raw) {
   const q = String(raw || '').trim();
   if (q.length < 2) return [];
   const out = [];
   const add = a => { for (const x of a || []) if (out.length < 3 && !out.some(o => o.value === x.value)) out.push(x); };
-  for (const t of [() => unixAnswer(q), () => basesAnswer(q), () => romanAnswer(q, raw), () => percentAnswer(q), () => cookingAnswer(q), () => distAnswer(q), () => unitAnswer(q), () => tzAnswer(q), () => dateAnswer(q)]) {
+  for (const t of [() => unixAnswer(q), () => basesAnswer(q), () => romanAnswer(q, raw), () => percentAnswer(q), () => cookingAnswer(q), () => distAnswer(q), () => payAnswer(q), () => taxAnswer(q), () => unitAnswer(q), () => tzAnswer(q), () => dateAnswer(q)]) {
     try { add(t()); } catch (e) { console.warn(e); }
   }
   try { add(await currencyAnswer(q)); } catch (e) { console.warn(e); }

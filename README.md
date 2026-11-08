@@ -1,7 +1,7 @@
 # NaNter
 
 Every converter and calculator in one pocket app, so you never need those ad-stuffed websites again.
-Units, currency, dates, time zones, percentages, loans, sizes and more: **94 tools**, no ads, no accounts, no tracking, and it works offline.
+Units, currency, dates, time zones, percentages, loans, sizes and more: **97 tools**, no ads, no accounts, no tracking, and it works offline.
 
 **Open it:** https://hichamabd.github.io/NaNter/
 
@@ -11,7 +11,8 @@ On iPhone, open the link in Safari, tap **Share** then **Add to Home Screen**. N
 
 - **Search does the maths.** Type in the search box and get the answer without opening anything:
   `5 ft 11 in cm`, `100 usd in eur`, `20% of 85`, `30% off 120`, `72 f`, `days until christmas`, `today + 90 days`,
-  `in 10 working days`, `time in tokyo`, `3pm london in tokyo`, `distance paris tokyo`, `1 cup flour in g`, `0xff`, `1700000000`, `MMXXVI`, `12*3+4`.
+  `in 10 working days`, `time in tokyo`, `3pm london in tokyo`, `distance paris tokyo`, `1 cup flour in g`, `0xff`, `1700000000`, `MMXXVI`, `12*3+4`,
+  `2500 brut`, `1900 net en brut`, `impôt 30000`.
   Tap **Open** on an answer and the tool opens already filled in.
 - **Type in any row.** Converters (units, currency, number bases, cups ↔ grams) have no "from" and "to": type in whichever row you like and every other row updates. Tap a unit name to copy its value.
 - **Fill in any two.** Running pace, travel time, download time and Ohm's law work out whichever value you leave empty.
@@ -24,7 +25,7 @@ On iPhone, open the link in Safari, tap **Share** then **Add to Home Screen**. N
 | Category | Tools |
 | --- | --- |
 | Units | Length, weight, temperature, volume, area, speed, time, pressure, energy, power, force, torque, angle (incl. ° ′ ″ and slope %), frequency, fuel economy, EV efficiency, density, flow rate, acceleration, illuminance |
-| Money | Currency (live rates, 200+ currencies and crypto), exchange history (charts, rate on any date), travel price cheat sheet, crypto & gold (per gram, 24k/22k/21k/18k), tip & split, discount, VAT / sales tax, margin & markup, loan & mortgage (insurance, overpayments, schedule), savings & compound interest, salary, unit price comparison, trip cost (fuel or EV), energy cost |
+| Money | Currency (live rates, 200+ currencies and crypto), exchange history (charts, rate on any date), travel price cheat sheet, crypto & gold (per gram, 24k/22k/21k/18k), tip & split, discount, VAT / sales tax, margin & markup, loan & mortgage (insurance, overpayments, schedule), savings & compound interest, savings goals (how much per month, or when you get there, with a log of what you saved), salary, French gross ↔ net pay (non-cadre, cadre, civil servant, contractuel; net imposable, withholding), French income tax (parts, brackets, family cap, décote, marginal and withholding rate), unit price comparison, trip cost (fuel or EV), energy cost |
 | Date & time | Date difference (working days, public holidays), add to date, age, countdowns, holidays (public holidays with long weekends and bridge days, French school holidays zones A/B/C), time zones (meeting planner), city distance (great circle, flight time), time calculator, timesheet, travel time, Unix time, date info (ISO week, day of year), calendars (Hijri, Hebrew, Persian, Chinese… with Ramadan and Eid dates), sun & moon |
 | Math | Scientific calculator (history, degrees/radians), percentage, ratio & rule of three, fractions, number bases, Roman numerals, statistics, aspect ratio, area & volume, big numbers (million, milliard, lakh), numbers in words (EN/FR, cheques), random |
 | Health | BMI, calories (BMR/TDEE), body fat, running pace, heart-rate zones, due date, blood values (glucose, HbA1c, cholesterol), sleep cycles |
@@ -47,6 +48,7 @@ A service worker caches the whole app on first visit, so it opens instantly and 
 | French school holidays | Ministère de l’Éducation nationale open data ([data.gouv.fr](https://www.data.gouv.fr/fr/datasets/vacances-scolaires-par-zones/), Licence Ouverte), built in up to summer 2028 |
 | Time zones, calendars | The device (`Intl`), so daylight-saving rules stay current |
 | Sun & moon | NOAA-style solar equations (after SunCalc), computed locally |
+| French pay & income tax | 2026 official figures, built in: PMSS 4,005 €, contribution rates, barème of the loi de finances 2026 (2025 income), neutral withholding grid from May 2026. Update `js/tools/frtax.js` each January. |
 
 Nothing else leaves the device: no analytics, no cookies, no accounts.
 
